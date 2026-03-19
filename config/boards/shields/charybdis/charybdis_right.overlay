@@ -21,31 +21,32 @@
         ;
 };
 
-// 1. 기존 하드웨어 SPI 비활성화
-&spi0 {
-    status = "disabled";
-};
-
-// 2. 소프트웨어 SPI 선언 및 그 안에 트랙볼 직접 정의
+// [수정본] 트랙볼 핀을 겹치지 않는 번호로 전면 재배치
 / {
     spi_sw: spi-soft {
         compatible = "zephyr,spi-bitbang";
         #address-cells = <1>;
         #size-cells = <0>;
-        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   // SCK
-        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MOSI
-        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO
-        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   // CS
-
-        // 트랙볼 정의를 SPI 노드 내부로 이동 (이래야 에러가 안 납니다)
-        trackball: trackball@0 {
-            compatible = "pixart,pmw3610";
-            reg = <0>;
-            spi-max-frequency = <2000000>;
-            irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-            scroll-layers = <1>;
-        };
+        // nice!nano에서 매트릭스로 잘 안 쓰는 핀들로 우회합니다.
+        clk-gpios  = <&gpio0 10 GPIO_ACTIVE_HIGH>;  // 8번 대신 10번
+        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // 17번 (데이터 출력)
+        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // 17번 (데이터 입력 - 공유)
+        cs-gpios   = <&gpio1 7  GPIO_ACTIVE_LOW>;   // 20번 대신 1.07번(완전 다른 길)
     };
+};
+
+&spi0 { status = "disabled"; };
+
+&trackball {
+    status = "okay";
+    compatible = "pixart,pmw3610";
+    reg = <0>;
+    spi-dev = <&spi_sw>;
+    spi-max-frequency = <2000000>;
+    // IRQ 핀도 혹시 모르니 확인 (기존 6번 유지하되 안 되면 22번 등으로 변경 고려)
+    irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+    scroll-layers = <1>;
+};
 
     // 트랙볼 신호를 받아주는 리스너
     trackball_listener {
