@@ -21,23 +21,23 @@
         ;
 };
 
-// 1. 기존 하드웨어 SPI 비활성화
+// 1. 하드웨어 SPI 완전히 차단 (n키 무한 입력의 근본 원인 제거)
 &spi0 {
     status = "disabled";
 };
 
-// 2. 소프트웨어 SPI 선언 및 그 안에 트랙볼 직접 정의
+// 2. 소프트웨어 SPI(비트뱅잉) 재정의
 / {
     spi_sw: spi-soft {
         compatible = "zephyr,spi-bitbang";
         #address-cells = <1>;
         #size-cells = <0>;
-        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   // SCK
-        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MOSI
-        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO
-        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   // CS
+        // 순정 핀 번호를 그대로 사용하되, 소프트웨어적으로 제어해 간섭을 최소화합니다.
+        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   // SCK (8번)
+        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MOSI (17번)
+        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO (17번 공유)
+        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   // CS (20번) - 1.07번 쓰면 안 됨!
 
-        // 트랙볼 정의를 SPI 노드 내부로 이동 (이래야 에러가 안 납니다)
         trackball: trackball@0 {
             compatible = "pixart,pmw3610";
             reg = <0>;
@@ -47,7 +47,6 @@
         };
     };
 
-    // 트랙볼 신호를 받아주는 리스너
     trackball_listener {
         compatible = "zmk,input-listener";
         device = <&trackball>;
