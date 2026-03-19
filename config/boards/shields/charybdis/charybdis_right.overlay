@@ -1,62 +1,50 @@
-/*
- * Copyright (c) 2020 ZMK Contributors
- *
- * SPDX-License-Identifier: MIT
- */
- 
 #include "charybdis.dtsi"
 
 &default_transform {
     col-offset = <6>;
 }; 
 
-// [에러 해결의 핵심]
 / {
     chosen {
-        // 1. 배터리를 가리키던 화살표를 먼저 제거합니다 (undefined node label 'vbatt' 에러 방지)
+        // [핵심] vbatt 노드를 참조하는 화살표를 먼저 제거해야 빌드 에러가 안 납니다.
         /delete-property/ zmk,battery;
     };
 
-    // 2. 이제 안심하고 배터리 노드를 삭제해서 P0.29(n키)를 자유로 만들 수 있습니다.
+    // [핵심] 이제 안심하고 배터리 노드를 지워 P0.29(n키)를 살립니다.
     /delete-node/ vbatt;
 };
 
 &kscan0 {
     col-gpios
-        = <&gpio0 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-        , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)> // 이제 진짜 n키의 길이 열립니다!
-        , <&gpio0 9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+        = <&gpio0 2  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+        , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)> // 이제 n키가 입력됩니다.
+        , <&gpio0 9  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio1 0  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio0 11 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio1 4  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         ;
 };
 
-// 1. 하드웨어 SPI 비활성화 (간섭 방지)
+// 트랙볼: 하드웨어 SPI(spi0)를 사용하되 간섭을 최소화하는 순정 설정을 적용합니다.
 &spi0 {
-    status = "disabled";
+    status = "okay";
+    compatible = "nordic,nrf-spim";
+    pinctrl-0 = <&spi0_default>;
+    pinctrl-1 = <&spi0_sleep>;
+    pinctrl-names = "default", "sleep";
+    cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+
+    trackball: trackball@0 {
+        status = "okay";
+        compatible = "pixart,pmw3610";
+        reg = <0>;
+        spi-max-frequency = <2000000>;
+        irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+        scroll-layers = <1>;
+    };
 };
 
-// 2. 소프트웨어 SPI(비트뱅잉) 설정
 / {
-    spi_sw: spi-soft {
-        compatible = "zephyr,spi-bitbang";
-        #address-cells = <1>;
-        #size-cells = <0>;
-        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   
-        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  
-        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  
-        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   
-
-        trackball: trackball@0 {
-            compatible = "pixart,pmw3610";
-            reg = <0>;
-            spi-max-frequency = <2000000>;
-            irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-            scroll-layers = <1>;
-        };
-    };
-
     trackball_listener {
         compatible = "zmk,input-listener";
         device = <&trackball>;
