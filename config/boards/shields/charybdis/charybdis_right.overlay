@@ -6,12 +6,10 @@
  
 #include "charybdis.dtsi"
 
-// 1. 키보드 매트릭스 위치 설정
 &default_transform {
     col-offset = <6>;
 }; 
 
-// 2. 오른쪽 하프의 열(Column) 핀 정의 (판매자 원본 유지)
 &kscan0 {
     col-gpios
         = <&gpio0 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
@@ -23,38 +21,33 @@
         ;
 };
 
-// 3. 소프트웨어 SPI(Bit-bang) 선언 - n키 충돌을 피하는 핵심 로직
+// 1. 기존 하드웨어 SPI 비활성화
+&spi0 {
+    status = "disabled";
+};
+
+// 2. 소프트웨어 SPI 선언 및 그 안에 트랙볼 직접 정의
 / {
     spi_sw: spi-soft {
         compatible = "zephyr,spi-bitbang";
         #address-cells = <1>;
         #size-cells = <0>;
-        // 판매자 배선에 맞춰 핀 번호를 지정하되, 소프트웨어적으로 제어하여 간섭을 줄입니다.
         clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   // SCK
         mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MOSI
-        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO (MOSI와 공유)
+        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO
         cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   // CS
+
+        // 트랙볼 정의를 SPI 노드 내부로 이동 (이래야 에러가 안 납니다)
+        trackball: trackball@0 {
+            compatible = "pixart,pmw3610";
+            reg = <0>;
+            spi-max-frequency = <2000000>;
+            irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+            scroll-layers = <1>;
+        };
     };
-};
 
-// 4. 기존 하드웨어 SPI 비활성화 (충돌 원인 제거)
-&spi0 {
-    status = "disabled";
-};
-
-// 5. 트랙볼이 새로 만든 spi_sw를 사용하도록 설정
-&trackball {
-    status = "okay";
-    compatible = "pixart,pmw3610";
-    reg = <0>;
-    spi-dev = <&spi_sw>; 
-    spi-max-frequency = <2000000>;
-    irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-    scroll-layers = <1>;
-};
-
-// 6. 트랙볼 신호를 입력으로 변환하는 리스너
-/ {
+    // 트랙볼 신호를 받아주는 리스너
     trackball_listener {
         compatible = "zmk,input-listener";
         device = <&trackball>;
