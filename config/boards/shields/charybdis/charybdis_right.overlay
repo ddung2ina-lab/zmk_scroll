@@ -1,23 +1,29 @@
+/*
+ * Copyright (c) 2020 ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #include "charybdis.dtsi"
 
 &default_transform {
     col-offset = <6>;
-}; 
+};
 
+// [1] 배터리 노드 관련 에러 방지 및 n키(P0.29) 해방
 / {
     chosen {
-        // [핵심] vbatt 노드를 참조하는 화살표를 먼저 제거해야 빌드 에러가 안 납니다.
         /delete-property/ zmk,battery;
     };
 
-    // [핵심] 이제 안심하고 배터리 노드를 지워 P0.29(n키)를 살립니다.
     /delete-node/ vbatt;
 };
 
+// [2] 오른쪽 버튼 핀 설정 (29번 포함)
 &kscan0 {
     col-gpios
         = <&gpio0 2  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-        , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)> // 이제 n키가 입력됩니다.
+        , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio0 9  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio1 0  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio0 11 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
@@ -25,26 +31,31 @@
         ;
 };
 
-// 트랙볼: 하드웨어 SPI(spi0)를 사용하되 간섭을 최소화하는 순정 설정을 적용합니다.
+// [3] 하드웨어 SPI는 끄고 (에러의 원인)
 &spi0 {
-    status = "okay";
-    compatible = "nordic,nrf-spim";
-    pinctrl-0 = <&spi0_default>;
-    pinctrl-1 = <&spi0_sleep>;
-    pinctrl-names = "default", "sleep";
-    cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
-
-    trackball: trackball@0 {
-        status = "okay";
-        compatible = "pixart,pmw3610";
-        reg = <0>;
-        spi-max-frequency = <2000000>;
-        irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-        scroll-layers = <1>;
-    };
+    status = "disabled";
 };
 
+// [4] 소프트웨어 SPI로 트랙볼 연결 (pinctrl 에러 없음)
 / {
+    spi_sw: spi-soft {
+        compatible = "zephyr,spi-bitbang";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   // SCK
+        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MOSI
+        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO (공유)
+        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   // CS
+
+        trackball: trackball@0 {
+            compatible = "pixart,pmw3610";
+            reg = <0>;
+            spi-max-frequency = <2000000>;
+            irq-gpios = <&gpio0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+            scroll-layers = <1>;
+        };
+    };
+
     trackball_listener {
         compatible = "zmk,input-listener";
         device = <&trackball>;
