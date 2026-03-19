@@ -10,10 +10,15 @@
     col-offset = <6>;
 }; 
 
+// [수정 포인트 1] n키(P0.29)를 배터리 감시로부터 완전히 해방시킵니다.
+/ {
+    /delete-node/ vbatt;
+};
+
 &kscan0 {
     col-gpios
         = <&gpio0 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-        , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+        , <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)> // 이제 이 핀이 n키 전용으로 돌아옵니다.
         , <&gpio0 9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio1 0  (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
         , <&gpio0 11 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
@@ -21,7 +26,7 @@
         ;
 };
 
-// 1. 하드웨어 SPI 완전히 차단 (n키 무한 입력의 근본 원인 제거)
+// 1. 하드웨어 SPI 완전히 차단 (간섭 제거)
 &spi0 {
     status = "disabled";
 };
@@ -32,11 +37,10 @@
         compatible = "zephyr,spi-bitbang";
         #address-cells = <1>;
         #size-cells = <0>;
-        // 순정 핀 번호를 그대로 사용하되, 소프트웨어적으로 제어해 간섭을 최소화합니다.
-        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   // SCK (8번)
-        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MOSI (17번)
-        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  // MISO (17번 공유)
-        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   // CS (20번) - 1.07번 쓰면 안 됨!
+        clk-gpios  = <&gpio0 8  GPIO_ACTIVE_HIGH>;   
+        mosi-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  
+        miso-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;  
+        cs-gpios   = <&gpio0 20 GPIO_ACTIVE_LOW>;   
 
         trackball: trackball@0 {
             compatible = "pixart,pmw3610";
